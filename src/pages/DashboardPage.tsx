@@ -463,6 +463,10 @@ export function DashboardPage() {
                               e.stopPropagation();
                               setOpenMenuId(openMenuId === article.id ? null : article.id);
                             }}
+                            /* Prevent touch events from bubbling to the row on mobile */
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
+                            }}
                             className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
                             title="Actions"
                           >
@@ -556,6 +560,10 @@ export function DashboardPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setOpenMenuId(openMenuId === article.id ? null : article.id);
+                            }}
+                            /* Prevent touch events from bubbling to the row on mobile */
+                            onTouchStart={(e) => {
+                              e.stopPropagation();
                             }}
                             className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
                             title="Plus d'actions"
