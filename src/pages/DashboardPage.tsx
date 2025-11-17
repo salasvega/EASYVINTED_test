@@ -11,6 +11,9 @@ import {
   Trash2,
   DollarSign,
   Calendar,
+  Clock,
+  CheckCircle2,
+  FileText,
 } from 'lucide-react';
 import { Article, ArticleStatus, Season } from '../types/article';
 import { Button } from '../components/ui/Button';
@@ -49,11 +52,13 @@ const SEASON_LABELS: Record<string, string> = {
 export function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
   const [statusFilter, setStatusFilter] = useState<ArticleStatus | 'all'>('all');
   const [seasonFilter, setSeasonFilter] = useState<Season | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     title: string;
@@ -65,21 +70,24 @@ export function DashboardPage() {
     message: '',
     type: 'error',
   });
+
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; article: Article | null }>({
     isOpen: false,
     article: null,
   });
+
   const [scheduleModal, setScheduleModal] = useState<{ isOpen: boolean; article: Article | null }>({
     isOpen: false,
     article: null,
   });
+
   const [soldModal, setSoldModal] = useState<{ isOpen: boolean; article: Article | null }>({
     isOpen: false,
     article: null,
   });
 
-  // Deux refs séparées : une pour le menu desktop, une pour le menu mobile
   const desktopMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -91,7 +99,6 @@ export function DashboardPage() {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
 
-      // Si on clique dans l'un des menus, on ne ferme pas
       if (
         (desktopMenuRef.current && desktopMenuRef.current.contains(target)) ||
         (mobileMenuRef.current && mobileMenuRef.current.contains(target))
@@ -117,7 +124,7 @@ export function DashboardPage() {
 
       if (error) throw error;
 
-      const formattedArticles: Article[] = (data || []).map((article) => ({
+      const formattedArticles: Article[] = (data || []).map((article: any) => ({
         ...article,
         price: parseFloat(article.price),
       }));
@@ -338,6 +345,23 @@ export function DashboardPage() {
     setOpenMenuId(null);
   };
 
+  const renderStatusIcon = (status: ArticleStatus) => {
+    switch (status) {
+      case 'draft':
+        return <FileText className="w-3 h-3" />;
+      case 'ready':
+        return <CheckCircle2 className="w-3 h-3" />;
+      case 'scheduled':
+        return <Clock className="w-3 h-3" />;
+      case 'published':
+        return <CheckCircle2 className="w-3 h-3" />;
+      case 'sold':
+        return <DollarSign className="w-3 h-3" />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <>
       <Modal
@@ -347,6 +371,7 @@ export function DashboardPage() {
         message={modalState.message}
         type={modalState.type}
       />
+
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mes articles en Stock</h1>
@@ -355,8 +380,8 @@ export function DashboardPage() {
           </p>
         </div>
 
-        {/* Filtres */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          {/* Filtres */}
           <div className="p-4 border-b border-gray-200">
             <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1">
@@ -372,6 +397,7 @@ export function DashboardPage() {
                   />
                 </div>
               </div>
+
               <div className="w-full lg:w-48">
                 <label className="block text-xs font-medium text-gray-700 mb-2">
                   Filtrer par saison
@@ -389,6 +415,7 @@ export function DashboardPage() {
                   <option value="all-seasons">Toutes saisons</option>
                 </select>
               </div>
+
               <div className="w-full lg:w-48">
                 <label className="block text-xs font-medium text-gray-700 mb-2">
                   Filtrer par statut
@@ -408,8 +435,8 @@ export function DashboardPage() {
             </div>
           </div>
 
-          {/* LISTE MOBILE (cartes, pas de scroll horizontal) */}
-          <div className="block md:hidden">
+          {/* LISTE MOBILE */}
+          <div className="block md:hidden bg-gray-50">
             {loading ? (
               <div className="px-4 py-8 text-center text-sm text-gray-500">Chargement...</div>
             ) : filteredArticles.length === 0 ? (
@@ -417,9 +444,13 @@ export function DashboardPage() {
                 Aucun article trouvé
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="space-y-3 px-3 py-3">
                 {filteredArticles.map((article) => (
-                  <div key={article.id} className="px-4 py-3 flex gap-3">
+                  <div
+                    key={article.id}
+                    className="bg-white rounded-xl shadow-sm border border-gray-100 px-3 py-3 flex gap-3"
+                    onClick={() => navigate(`/articles/${article.id}/preview`)}
+                  >
                     {/* Photo */}
                     <div className="flex-shrink-0">
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
@@ -439,108 +470,142 @@ export function DashboardPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">
+                          <div className="text-sm font-semibold text-gray-900 truncate">
                             {article.title}
                           </div>
-                          <div className="text-xs text-gray-500 truncate">
-                            {article.brand || 'Non spécifié'} • {article.price}€
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span className="truncate">{article.brand || 'Non spécifié'}</span>
+                            <span className="w-1 h-1 rounded-full bg-gray-300" />
+                            <span className="font-semibold text-gray-800">
+                              {article.price.toFixed(0)}€
+                            </span>
                           </div>
                         </div>
+
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${STATUS_COLORS[article.status]}`}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${STATUS_COLORS[article.status]}`}
                         >
+                          {renderStatusIcon(article.status)}
                           {STATUS_LABELS[article.status]}
                         </span>
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <span className="text-[11px] text-gray-500">
-                          Saison : {SEASON_LABELS[article.season]}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-100 text-gray-700">
+                          {SEASON_LABELS[article.season]}
                         </span>
-                        <span className="text-[11px] text-gray-500">
-                          {article.status === 'scheduled' && article.scheduled_at
-                            ? `Planifié le ${formatDate(article.scheduled_at)}`
-                            : 'Non planifié'}
-                        </span>
+
+                        {article.status === 'scheduled' && article.scheduled_at ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-yellow-50 text-yellow-700 border border-yellow-100">
+                            <Clock className="w-3 h-3 mr-1" />
+                            {formatDate(article.scheduled_at)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] bg-gray-50 text-gray-500 border border-gray-100">
+                            Non planifié
+                          </span>
+                        )}
                       </div>
 
                       {/* Actions mobile */}
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-1">
+                      <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[11px] text-gray-400">
+                          Créé le {formatDate(article.created_at)}
+                        </span>
+
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => navigate(`/articles/${article.id}/preview`)}
-                            className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/articles/${article.id}/preview`);
+                            }}
+                            className="p-1.5 text-gray-600 hover:text-emerald-600 transition-colors"
                             title="Voir"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
+
                           <button
-                            onClick={() => navigate(`/articles/${article.id}/edit`)}
-                            className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/articles/${article.id}/edit`);
+                            }}
+                            className="p-1.5 text-gray-600 hover:text-emerald-600 transition-colors"
                             title="Modifier"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
-                        </div>
 
-                        <div
-                          className="relative flex-shrink-0"
-                          ref={openMenuId === article.id ? mobileMenuRef : null}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenMenuId(openMenuId === article.id ? null : article.id);
-                            }}
-                            className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
-                            title="Plus d'actions"
+                          <div
+                            className="relative flex-shrink-0"
+                            ref={openMenuId === article.id ? mobileMenuRef : null}
                           >
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
-                          {openMenuId === article.id && (
-                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                              <div className="py-1">
-                                <button
-                                  onClick={() => handleDuplicate(article)}
-                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                >
-                                  <Copy className="w-4 h-4" />
-                                  Dupliquer l'article
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setScheduleModal({ isOpen: true, article });
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                >
-                                  <Calendar className="w-4 h-4" />
-                                  Programmer la publication
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSoldModal({ isOpen: true, article });
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                >
-                                  <DollarSign className="w-4 h-4" />
-                                  Marquer comme vendu
-                                </button>
-                                <div className="border-t border-gray-100 my-1"></div>
-                                <button
-                                  onClick={() => {
-                                    setDeleteModal({ isOpen: true, article });
-                                    setOpenMenuId(null);
-                                  }}
-                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                  Supprimer l'article
-                                </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenMenuId(openMenuId === article.id ? null : article.id);
+                              }}
+                              className="p-1.5 text-gray-600 hover:text-emerald-600 transition-colors"
+                              title="Plus d'actions"
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+
+                            {openMenuId === article.id && (
+                              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                                <div className="py-1">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDuplicate(article);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                    Dupliquer l'article
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setScheduleModal({ isOpen: true, article });
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <Calendar className="w-4 h-4" />
+                                    Programmer la publication
+                                  </button>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSoldModal({ isOpen: true, article });
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                  >
+                                    <DollarSign className="w-4 h-4" />
+                                    Marquer comme vendu
+                                  </button>
+
+                                  <div className="border-t border-gray-100 my-1"></div>
+
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteModal({ isOpen: true, article });
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Supprimer l'article
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -550,7 +615,7 @@ export function DashboardPage() {
             )}
           </div>
 
-          {/* TABLEAU DESKTOP (>= md) */}
+          {/* TABLEAU DESKTOP */}
           <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -613,7 +678,7 @@ export function DashboardPage() {
                           {article.title}
                         </div>
                         <div className="text-xs text-gray-500 truncate">
-                          {article.brand} • {article.price}€
+                          {article.brand} • {article.price.toFixed(0)}€
                         </div>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
@@ -630,8 +695,9 @@ export function DashboardPage() {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[article.status]}`}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[article.status]}`}
                         >
+                          {renderStatusIcon(article.status)}
                           {STATUS_LABELS[article.status]}
                         </span>
                       </td>
