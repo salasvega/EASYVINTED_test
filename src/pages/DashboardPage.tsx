@@ -1,6 +1,17 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, Edit, MoreVertical, Plus, Image as ImageIcon, Search, Copy, Trash2, DollarSign, Calendar } from 'lucide-react';
+import {
+  Eye,
+  Edit,
+  MoreVertical,
+  Plus,
+  Image as ImageIcon,
+  Search,
+  Copy,
+  Trash2,
+  DollarSign,
+  Calendar,
+} from 'lucide-react';
 import { Article, ArticleStatus, Season } from '../types/article';
 import { Button } from '../components/ui/Button';
 import { supabase } from '../lib/supabase';
@@ -68,7 +79,7 @@ export function DashboardPage() {
     article: null,
   });
 
-  // Deux refs : une pour le menu desktop, une pour le menu mobile
+  // Deux refs séparées : une pour le menu desktop, une pour le menu mobile
   const desktopMenuRef = useRef<HTMLDivElement | null>(null);
   const mobileMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -80,7 +91,7 @@ export function DashboardPage() {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as Node;
 
-      // Si on clique à l’intérieur de l’un des deux menus, on ne ferme pas
+      // Si on clique dans l'un des menus, on ne ferme pas
       if (
         (desktopMenuRef.current && desktopMenuRef.current.contains(target)) ||
         (mobileMenuRef.current && mobileMenuRef.current.contains(target))
@@ -88,7 +99,6 @@ export function DashboardPage() {
         return;
       }
 
-      // Sinon, on ferme le menu
       setOpenMenuId(null);
     }
 
@@ -345,6 +355,7 @@ export function DashboardPage() {
           </p>
         </div>
 
+        {/* Filtres */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="p-4 border-b border-gray-200">
             <div className="flex flex-col lg:flex-row gap-4">
@@ -362,7 +373,9 @@ export function DashboardPage() {
                 </div>
               </div>
               <div className="w-full lg:w-48">
-                <label className="block text-xs font-medium text-gray-700 mb-2">Filtrer par saison</label>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Filtrer par saison
+                </label>
                 <select
                   value={seasonFilter}
                   onChange={(e) => setSeasonFilter(e.target.value as Season | 'all')}
@@ -377,7 +390,9 @@ export function DashboardPage() {
                 </select>
               </div>
               <div className="w-full lg:w-48">
-                <label className="block text-xs font-medium text-gray-700 mb-2">Filtrer par statut</label>
+                <label className="block text-xs font-medium text-gray-700 mb-2">
+                  Filtrer par statut
+                </label>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as ArticleStatus | 'all')}
@@ -393,26 +408,169 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* LISTE MOBILE (cartes, pas de scroll horizontal) */}
+          <div className="block md:hidden">
+            {loading ? (
+              <div className="px-4 py-8 text-center text-sm text-gray-500">Chargement...</div>
+            ) : filteredArticles.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-gray-500">
+                Aucun article trouvé
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {filteredArticles.map((article) => (
+                  <div key={article.id} className="px-4 py-3 flex gap-3">
+                    {/* Photo */}
+                    <div className="flex-shrink-0">
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                        {article.photos && article.photos.length > 0 ? (
+                          <img
+                            src={article.photos[0]}
+                            alt={article.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="w-6 h-6 text-gray-400" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contenu */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {article.title}
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">
+                            {article.brand || 'Non spécifié'} • {article.price}€
+                          </div>
+                        </div>
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium whitespace-nowrap ${STATUS_COLORS[article.status]}`}
+                        >
+                          {STATUS_LABELS[article.status]}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between gap-2">
+                        <span className="text-[11px] text-gray-500">
+                          Saison : {SEASON_LABELS[article.season]}
+                        </span>
+                        <span className="text-[11px] text-gray-500">
+                          {article.status === 'scheduled' && article.scheduled_at
+                            ? `Planifié le ${formatDate(article.scheduled_at)}`
+                            : 'Non planifié'}
+                        </span>
+                      </div>
+
+                      {/* Actions mobile */}
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => navigate(`/articles/${article.id}/preview`)}
+                            className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
+                            title="Voir"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/articles/${article.id}/edit`)}
+                            className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
+                            title="Modifier"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div
+                          className="relative flex-shrink-0"
+                          ref={openMenuId === article.id ? mobileMenuRef : null}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(openMenuId === article.id ? null : article.id);
+                            }}
+                            className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
+                            title="Plus d'actions"
+                          >
+                            <MoreVertical className="w-4 h-4" />
+                          </button>
+                          {openMenuId === article.id && (
+                            <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                              <div className="py-1">
+                                <button
+                                  onClick={() => handleDuplicate(article)}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <Copy className="w-4 h-4" />
+                                  Dupliquer l'article
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setScheduleModal({ isOpen: true, article });
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <Calendar className="w-4 h-4" />
+                                  Programmer la publication
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSoldModal({ isOpen: true, article });
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                >
+                                  <DollarSign className="w-4 h-4" />
+                                  Marquer comme vendu
+                                </button>
+                                <div className="border-t border-gray-100 my-1"></div>
+                                <button
+                                  onClick={() => {
+                                    setDeleteModal({ isOpen: true, article });
+                                    setOpenMenuId(null);
+                                  }}
+                                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                  Supprimer l'article
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* TABLEAU DESKTOP (>= md) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Photo
                   </th>
-                  <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Titre
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Saison
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden lg:table-cell">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Planification
                   </th>
-                  <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Statut
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider hidden md:table-cell">
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -437,8 +595,8 @@ export function DashboardPage() {
                       className="hover:bg-gray-50 cursor-pointer"
                       onDoubleClick={() => navigate(`/articles/${article.id}/preview`)}
                     >
-                      <td className="px-2 md:px-4 py-3 whitespace-nowrap">
-                        <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
                           {article.photos && article.photos.length > 0 ? (
                             <img
                               src={article.photos[0]}
@@ -446,122 +604,38 @@ export function DashboardPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <ImageIcon className="w-4 h-4 md:w-6 md:h-6 text-gray-400" />
+                            <ImageIcon className="w-6 h-6 text-gray-400" />
                           )}
                         </div>
                       </td>
-                      <td className="px-2 md:px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900 truncate">{article.title}</div>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {article.title}
+                        </div>
                         <div className="text-xs text-gray-500 truncate">
                           {article.brand} • {article.price}€
                         </div>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
-                        <span className="text-sm text-gray-700">{SEASON_LABELS[article.season]}</span>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="text-sm text-gray-700">
+                          {SEASON_LABELS[article.season]}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap hidden lg:table-cell">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span className="text-sm text-gray-700">
                           {article.status === 'scheduled' && article.scheduled_at
                             ? formatDate(article.scheduled_at)
                             : 'Non planifié'}
                         </span>
                       </td>
-                      <td className="px-2 md:px-4 py-3 whitespace-nowrap">
-                        <div className="flex items-center gap-1 md:gap-2">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${STATUS_COLORS[article.status]}`}
-                          >
-                            {STATUS_LABELS[article.status]}
-                          </span>
-
-                          {/* Menu mobile */}
-                          <div
-                            className="md:hidden relative flex-shrink-0"
-                            ref={openMenuId === article.id ? mobileMenuRef : null}
-                          >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenMenuId(openMenuId === article.id ? null : article.id);
-                              }}
-                              className="p-1 text-gray-600 hover:text-emerald-600 transition-colors"
-                              title="Actions"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            {openMenuId === article.id && (
-                              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                                <div className="py-1">
-                                  <button
-                                    onClick={() => {
-                                      navigate(`/articles/${article.id}/preview`);
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                  >
-                                    <Eye className="w-4 h-4" />
-                                    Voir l'article
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      navigate(`/articles/${article.id}/edit`);
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                    Modifier l'article
-                                  </button>
-                                  <button
-                                    onClick={() => handleDuplicate(article)}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                  >
-                                    <Copy className="w-4 h-4" />
-                                    Dupliquer l'article
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setScheduleModal({
-                                        isOpen: true,
-                                        article,
-                                      });
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                  >
-                                    <Calendar className="w-4 h-4" />
-                                    Programmer la publication
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSoldModal({ isOpen: true, article });
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                  >
-                                    <DollarSign className="w-4 h-4" />
-                                    Marquer comme vendu
-                                  </button>
-                                  <div className="border-t border-gray-100 my-1"></div>
-                                  <button
-                                    onClick={() => {
-                                      setDeleteModal({ isOpen: true, article });
-                                      setOpenMenuId(null);
-                                    }}
-                                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                    Supprimer l'article
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[article.status]}`}
+                        >
+                          {STATUS_LABELS[article.status]}
+                        </span>
                       </td>
-
-                      {/* Colonne Actions desktop */}
-                      <td className="px-4 py-3 whitespace-nowrap hidden md:table-cell">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => navigate(`/articles/${article.id}/preview`)}
