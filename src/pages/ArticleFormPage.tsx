@@ -1,6 +1,6 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Save, CheckCircle, Trash2 } from 'lucide-react';
+import { Save, CheckCircle, Trash2, Send } from 'lucide-react';
 import { Condition, Season, ArticleStatus } from '../types/article';
 import { Button } from '../components/ui/Button';
 import { Toast } from '../components/ui/Toast';
@@ -9,6 +9,7 @@ import { PhotoUpload } from '../components/PhotoUpload';
 import { useAuth } from '../contexts/AuthContext';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { PublishInstructionsModal } from '../components/PublishInstructionsModal';
 import { VINTED_CATEGORIES } from '../constants/categories';
 import { COLORS, MATERIALS } from '../constants/articleAttributes';
 
@@ -35,15 +36,30 @@ export function ArticleFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { user } = useAuth();
+
   const [loading, setLoading] = useState(false);
   const [analyzingWithAI, setAnalyzingWithAI] = useState(false);
-  const [modalState, setModalState] = useState<{ isOpen: boolean; title: string; message: string; type: 'info' | 'error' | 'success' }>(
-    { isOpen: false, title: '', message: '', type: 'info' }
-  );
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'info' | 'error' | 'success';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info',
+  });
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [userProfile, setUserProfile] = useState<{ clothing_size: string; shoe_size: string } | null>(null);
   const [deleteModal, setDeleteModal] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [publishInstructionsModal, setPublishInstructionsModal] = useState<{ isOpen: boolean; articleId: string }>({
+    isOpen: false,
+    articleId: '',
+  });
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -62,8 +78,8 @@ export function ArticleFormPage() {
     material: '',
   });
 
-  const selectedCategory = VINTED_CATEGORIES.find(c => c.name === formData.main_category);
-  const selectedSubcategory = selectedCategory?.subcategories.find(s => s.name === formData.subcategory);
+  const selectedCategory = VINTED_CATEGORIES.find((c) => c.name === formData.main_category);
+  const selectedSubcategory = selectedCategory?.subcategories.find((s) => s.name === formData.subcategory);
 
   useEffect(() => {
     loadUserProfile();
@@ -132,8 +148,8 @@ export function ArticleFormPage() {
       setModalState({
         isOpen: true,
         title: 'Erreur',
-        message: 'Erreur lors du chargement de l\'article',
-        type: 'error'
+        message: "Erreur lors du chargement de l'article",
+        type: 'error',
       });
     } finally {
       setLoading(false);
@@ -145,8 +161,8 @@ export function ArticleFormPage() {
       setModalState({
         isOpen: true,
         title: 'Aucune photo',
-        message: 'Veuillez ajouter au moins une photo pour utiliser l\'analyse IA',
-        type: 'error'
+        message: "Veuillez ajouter au moins une photo pour utiliser l'analyse IA",
+        type: 'error',
       });
       return;
     }
@@ -156,7 +172,7 @@ export function ArticleFormPage() {
 
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-article-image`;
       const headers = {
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json',
       };
 
@@ -169,7 +185,7 @@ export function ArticleFormPage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }));
         console.error('API Error:', errorData);
-        throw new Error(errorData.error || 'Erreur lors de l\'analyse de l\'image');
+        throw new Error(errorData.error || "Erreur lors de l'analyse de l'image");
       }
 
       const analysisResult = await response.json();
@@ -180,12 +196,13 @@ export function ArticleFormPage() {
       let defaultSize = formData.size;
 
       const aiSubcategory = analysisResult.subcategory?.toLowerCase() || '';
-      const isShoeCategory = aiSubcategory.includes('basket') ||
-                            aiSubcategory.includes('sneaker') ||
-                            aiSubcategory.includes('botte') ||
-                            aiSubcategory.includes('bottine') ||
-                            aiSubcategory.includes('sandale') ||
-                            aiSubcategory.includes('talon');
+      const isShoeCategory =
+        aiSubcategory.includes('basket') ||
+        aiSubcategory.includes('sneaker') ||
+        aiSubcategory.includes('botte') ||
+        aiSubcategory.includes('bottine') ||
+        aiSubcategory.includes('sandale') ||
+        aiSubcategory.includes('talon');
 
       if (aiSubcategory.includes('robe')) {
         subcategory = 'Vêtements';
@@ -277,16 +294,16 @@ export function ArticleFormPage() {
       setModalState({
         isOpen: true,
         title: 'Analyse terminée',
-        message: 'Les informations de l\'article ont été remplies automatiquement. Vous pouvez les modifier si nécessaire.',
-        type: 'success'
+        message: "Les informations de l'article ont été remplies automatiquement. Vous pouvez les modifier si nécessaire.",
+        type: 'success',
       });
     } catch (error) {
       console.error('Error analyzing image:', error);
       setModalState({
         isOpen: true,
         title: 'Erreur',
-        message: 'Erreur lors de l\'analyse de l\'image avec l\'IA',
-        type: 'error'
+        message: "Erreur lors de l'analyse de l'image avec l'IA",
+        type: 'error',
       });
     } finally {
       setAnalyzingWithAI(false);
@@ -296,18 +313,10 @@ export function ArticleFormPage() {
   const validateForm = (): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
-    if (!formData.title.trim()) {
-      errors.push('title');
-    }
-    if (!formData.main_category) {
-      errors.push('main_category');
-    }
-    if (!formData.subcategory) {
-      errors.push('subcategory');
-    }
-    if (!formData.price || parseFloat(formData.price) <= 0) {
-      errors.push('price');
-    }
+    if (!formData.title.trim()) errors.push('title');
+    if (!formData.main_category) errors.push('main_category');
+    if (!formData.subcategory) errors.push('subcategory');
+    if (!formData.price || parseFloat(formData.price) <= 0) errors.push('price');
 
     return { isValid: errors.length === 0, errors };
   };
@@ -320,7 +329,7 @@ export function ArticleFormPage() {
       price: 'Prix',
     };
 
-    const missingFields = errors.map(error => fieldNames[error]).join(', ');
+    const missingFields = errors.map((error) => fieldNames[error]).join(', ');
     return `Veuillez remplir les champs obligatoires : ${missingFields}`;
   };
 
@@ -334,7 +343,7 @@ export function ArticleFormPage() {
       setValidationErrors(validation.errors);
       setToast({
         type: 'error',
-        text: getErrorMessage(validation.errors)
+        text: getErrorMessage(validation.errors),
       });
       return;
     }
@@ -364,30 +373,23 @@ export function ArticleFormPage() {
       };
 
       if (id) {
-        const { error } = await supabase
-          .from('articles')
-          .update(articleData)
-          .eq('id', id);
-
+        const { error } = await supabase.from('articles').update(articleData).eq('id', id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('articles')
-          .insert([articleData]);
-
+        const { error } = await supabase.from('articles').insert([articleData]);
         if (error) throw error;
       }
 
       setToast({
         type: 'success',
-        text: `Article ${id ? 'modifié' : 'créé'} avec succès`
+        text: `Article ${id ? 'modifié' : 'créé'} avec succès`,
       });
       setTimeout(() => navigate('/stock'), 1500);
     } catch (error) {
       console.error('Error saving article:', error);
       setToast({
         type: 'error',
-        text: 'Erreur lors de l\'enregistrement de l\'article'
+        text: "Erreur lors de l'enregistrement de l'article",
       });
     } finally {
       setLoading(false);
@@ -398,24 +400,88 @@ export function ArticleFormPage() {
     if (!id) return;
 
     try {
-      const { error } = await supabase
-        .from('articles')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('articles').delete().eq('id', id);
       if (error) throw error;
 
       setToast({
         type: 'success',
-        text: 'Article supprimé avec succès'
+        text: 'Article supprimé avec succès',
       });
+
+      setDeleteModal(false);
       setTimeout(() => navigate('/stock'), 1500);
     } catch (error) {
       console.error('Error deleting article:', error);
       setToast({
         type: 'error',
-        text: 'Erreur lors de la suppression de l\'article'
+        text: "Erreur lors de la suppression de l'article",
       });
+    }
+  };
+
+  const handlePublishToVinted = async (e: FormEvent) => {
+    e.preventDefault();
+    setValidationErrors([]);
+    setToast(null);
+
+    const validation = validateForm();
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      setToast({
+        type: 'error',
+        text: getErrorMessage(validation.errors),
+      });
+      return;
+    }
+
+    let articleIdToPublish = id;
+
+    try {
+      setPublishing(true);
+
+      if (!id) {
+        const articleData = {
+          title: formData.title,
+          description: formData.description,
+          brand: formData.brand,
+          size: formData.size,
+          condition: formData.condition,
+          main_category: formData.main_category,
+          subcategory: formData.subcategory,
+          item_category: formData.item_category,
+          price: parseFloat(formData.price),
+          actual_value: formData.actual_value ? parseFloat(formData.actual_value) : null,
+          season: formData.season,
+          suggested_period: formData.suggested_period,
+          photos: formData.photos,
+          color: formData.color || null,
+          material: formData.material || null,
+          status: 'ready',
+          user_id: user?.id,
+        };
+
+        const { data: newArticle, error: insertError } = await supabase
+          .from('articles')
+          .insert([articleData])
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        articleIdToPublish = newArticle.id;
+      }
+
+      setPublishInstructionsModal({
+        isOpen: true,
+        articleId: articleIdToPublish!,
+      });
+    } catch (error) {
+      console.error('Error preparing article:', error);
+      setToast({
+        type: 'error',
+        text: error instanceof Error ? error.message : "Erreur lors de la préparation de l'article",
+      });
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -428,6 +494,7 @@ export function ArticleFormPage() {
           onClose={() => setToast(null)}
         />
       )}
+
       <Modal
         isOpen={modalState.isOpen}
         onClose={() => setModalState({ ...modalState, isOpen: false })}
@@ -435,34 +502,51 @@ export function ArticleFormPage() {
         message={modalState.message}
         type={modalState.type}
       />
+
+      <PublishInstructionsModal
+        isOpen={publishInstructionsModal.isOpen}
+        onClose={() => setPublishInstructionsModal({ isOpen: false, articleId: '' })}
+        articleId={publishInstructionsModal.articleId}
+      />
+
       <div className="max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{id ? 'Modifier l\'article' : 'Nouvel article'}</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Remplissez les informations de votre article pour le préparer à la publication
-        </p>
-      </div>
+        <div className="mb-4">
+          <Button
+            variant="secondary"
+            onClick={() => navigate(-1)}
+            className="mb-4"
+          >
+            Retour
+          </Button>
+        </div>
 
-      <form className="space-y-6">
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Photos</h2>
-            <PhotoUpload
-              photos={formData.photos}
-              onPhotosChange={(photos) => setFormData({ ...formData, photos })}
-              onAnalyzeClick={handleAnalyzeWithAI}
-              analyzing={analyzingWithAI}
-            />
-          </div>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {id ? "Modifier l'article" : 'Nouvel article'}
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Remplissez les informations de votre article pour le préparer à la publication
+          </p>
+        </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations principales</h2>
+        <form className="space-y-6">
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Photos</h2>
+              <PhotoUpload
+                photos={formData.photos}
+                onPhotosChange={(photos) => setFormData({ ...formData, photos })}
+                onAnalyzeClick={handleAnalyzeWithAI}
+                analyzing={analyzingWithAI}
+              />
+            </div>
+
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Informations principales</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Titre *
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Titre *</label>
                   <input
                     type="text"
                     required
@@ -470,13 +554,11 @@ export function ArticleFormPage() {
                     onChange={(e) => {
                       setFormData({ ...formData, title: e.target.value });
                       if (validationErrors.includes('title')) {
-                        setValidationErrors(validationErrors.filter(err => err !== 'title'));
+                        setValidationErrors(validationErrors.filter((err) => err !== 'title'));
                       }
                     }}
                     className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                      validationErrors.includes('title')
-                        ? 'border-red-500 bg-red-50'
-                        : 'border-gray-300'
+                      validationErrors.includes('title') ? 'border-red-500 bg-red-50' : 'border-gray-300'
                     }`}
                     placeholder="Ex: Robe d'été fleurie"
                   />
@@ -486,9 +568,7 @@ export function ArticleFormPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -500,9 +580,7 @@ export function ArticleFormPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Marque
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Marque</label>
                     <input
                       type="text"
                       value={formData.brand}
@@ -513,9 +591,7 @@ export function ArticleFormPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Taille
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Taille</label>
                     <input
                       type="text"
                       value={formData.size}
@@ -528,9 +604,7 @@ export function ArticleFormPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Couleur
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Couleur</label>
                     <select
                       value={formData.color}
                       onChange={(e) => setFormData({ ...formData, color: e.target.value })}
@@ -546,9 +620,7 @@ export function ArticleFormPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Matière
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Matière</label>
                     <select
                       value={formData.material}
                       onChange={(e) => setFormData({ ...formData, material: e.target.value })}
@@ -565,13 +637,16 @@ export function ArticleFormPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    État *
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">État *</label>
                   <select
                     required
                     value={formData.condition}
-                    onChange={(e) => setFormData({ ...formData, condition: e.target.value as Condition })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        condition: e.target.value as Condition,
+                      })
+                    }
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   >
                     {Object.entries(CONDITION_LABELS).map(([value, label]) => (
@@ -590,15 +665,18 @@ export function ArticleFormPage() {
                     required
                     value={formData.main_category}
                     onChange={(e) => {
-                      setFormData({ ...formData, main_category: e.target.value, subcategory: '', item_category: '' });
+                      setFormData({
+                        ...formData,
+                        main_category: e.target.value,
+                        subcategory: '',
+                        item_category: '',
+                      });
                       if (validationErrors.includes('main_category')) {
-                        setValidationErrors(validationErrors.filter(err => err !== 'main_category'));
+                        setValidationErrors(validationErrors.filter((err) => err !== 'main_category'));
                       }
                     }}
                     className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                      validationErrors.includes('main_category')
-                        ? 'border-red-500 bg-red-50'
-                        : 'border-gray-300'
+                      validationErrors.includes('main_category') ? 'border-red-500 bg-red-50' : 'border-gray-300'
                     }`}
                   >
                     <option value="">Sélectionnez une catégorie</option>
@@ -622,15 +700,17 @@ export function ArticleFormPage() {
                       required
                       value={formData.subcategory}
                       onChange={(e) => {
-                        setFormData({ ...formData, subcategory: e.target.value, item_category: '' });
+                        setFormData({
+                          ...formData,
+                          subcategory: e.target.value,
+                          item_category: '',
+                        });
                         if (validationErrors.includes('subcategory')) {
-                          setValidationErrors(validationErrors.filter(err => err !== 'subcategory'));
+                          setValidationErrors(validationErrors.filter((err) => err !== 'subcategory'));
                         }
                       }}
                       className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                        validationErrors.includes('subcategory')
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-gray-300'
+                        validationErrors.includes('subcategory') ? 'border-red-500 bg-red-50' : 'border-gray-300'
                       }`}
                     >
                       <option value="">Sélectionnez une sous-catégorie</option>
@@ -648,12 +728,15 @@ export function ArticleFormPage() {
 
                 {formData.subcategory && selectedSubcategory && selectedSubcategory.items.length > 0 && (
                   <div>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Type d'article
-                    </label>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Type d'article</label>
                     <select
                       value={formData.item_category}
-                      onChange={(e) => setFormData({ ...formData, item_category: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          item_category: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     >
                       <option value="">Sélectionnez un type (optionnel)</option>
@@ -676,7 +759,12 @@ export function ArticleFormPage() {
                       step="0.01"
                       min="0"
                       value={formData.actual_value}
-                      onChange={(e) => setFormData({ ...formData, actual_value: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          actual_value: e.target.value,
+                        })
+                      }
                       className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="10.00"
                     />
@@ -696,39 +784,45 @@ export function ArticleFormPage() {
                       min="0"
                       value={formData.price}
                       onChange={(e) => {
-                        setFormData({ ...formData, price: e.target.value });
+                        setFormData({
+                          ...formData,
+                          price: e.target.value,
+                        });
                         if (validationErrors.includes('price')) {
-                          setValidationErrors(validationErrors.filter(err => err !== 'price'));
+                          setValidationErrors(validationErrors.filter((err) => err !== 'price'));
                         }
                       }}
                       className={`w-full px-3 py-2 text-sm border rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
-                        validationErrors.includes('price')
-                          ? 'border-red-500 bg-red-50'
-                          : 'border-gray-300'
+                        validationErrors.includes('price') ? 'border-red-500 bg-red-50' : 'border-gray-300'
                       }`}
                       placeholder="25.00"
                     />
                     {validationErrors.includes('price') && (
-                      <p className="text-xs text-red-600 mt-1">Ce champ est obligatoire et doit être supérieur à 0</p>
+                      <p className="text-xs text-red-600 mt-1">
+                        Ce champ est obligatoire et doit être supérieur à 0
+                      </p>
                     )}
                   </div>
                 </div>
+              </div>
             </div>
-          </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Saison & période conseillée
-            </h2>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                Saison & période conseillée
+              </h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    Saison
-                  </label>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Saison</label>
                   <select
                     value={formData.season}
-                    onChange={(e) => setFormData({ ...formData, season: e.target.value as Season })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        season: e.target.value as Season,
+                      })
+                    }
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   >
                     {Object.entries(SEASON_LABELS).map(([value, label]) => (
@@ -746,67 +840,89 @@ export function ArticleFormPage() {
                   <input
                     type="text"
                     value={formData.suggested_period}
-                    onChange={(e) => setFormData({ ...formData, suggested_period: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        suggested_period: e.target.value,
+                      })
+                    }
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     placeholder="Ex: Avril - Juin"
                   />
                 </div>
-
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-            {id && (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setDeleteModal(true)}
-                disabled={loading}
-                className="w-full sm:w-auto justify-center bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
-              >
-                <Trash2 className="w-4 h-4" />
-                Supprimer
-              </Button>
-            )}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:ml-auto">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={(e) => handleSubmit(e as any, 'draft')}
-                disabled={loading}
-                className="w-full sm:w-auto justify-center"
-              >
-                <Save className="w-4 h-4" />
-                <span className="hidden sm:inline">Enregistrer comme brouillon</span>
-                <span className="sm:hidden">Brouillon</span>
-              </Button>
-              <Button
-                type="button"
-                onClick={(e) => handleSubmit(e as any, 'ready')}
-                disabled={loading}
-                className="w-full sm:w-auto justify-center"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">Marquer comme prêt pour Vinted</span>
-                <span className="sm:hidden">Prêt pour Vinted</span>
-              </Button>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={(e) => handleSubmit(e as any, 'draft')}
+                  disabled={loading || publishing}
+                  className="w-full sm:w-auto justify-center"
+                >
+                  <Save className="w-4 h-4" />
+                  <span className="hidden sm:inline">Enregistrer comme brouillon</span>
+                  <span className="sm:hidden">Brouillon</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={(e) => handleSubmit(e as any, 'ready')}
+                  disabled={loading || publishing}
+                  className="w-full sm:w-auto justify-center"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span className="hidden sm:inline">Marquer comme prêt pour Vinted</span>
+                  <span className="sm:hidden">Prêt</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handlePublishToVinted}
+                  disabled={loading || publishing}
+                  className="w-full sm:w-auto justify-center bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Send className="w-4 h-4" />
+                  <span className="hidden sm:inline">
+                    {publishing ? 'Publication en cours...' : 'Valider et envoyer à Vinted'}
+                  </span>
+                  <span className="sm:hidden">
+                    {publishing ? 'Envoi...' : 'Envoyer à Vinted'}
+                  </span>
+                </Button>
+              </div>
+
+              {id && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setDeleteModal(true)}
+                  disabled={loading || publishing}
+                  className="w-full sm:w-auto justify-center bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Supprimer
+                </Button>
+              )}
             </div>
           </div>
-        </div>
-      </form>
+        </form>
 
-      <ConfirmModal
-        isOpen={deleteModal}
-        onClose={() => setDeleteModal(false)}
-        onConfirm={handleDelete}
-        title="Supprimer l'article"
-        message="Êtes-vous sûr de vouloir supprimer cet article ? Cette action est irréversible."
-        confirmLabel="Supprimer"
-        variant="danger"
-      />
-    </div>
+        <ConfirmModal
+          isOpen={deleteModal}
+          onClose={() => setDeleteModal(false)}
+          onConfirm={handleDelete}
+          title="Supprimer l'article"
+          message="Êtes-vous sûr de vouloir supprimer cet article ? Cette action est irréversible."
+          confirmLabel="Supprimer"
+          variant="danger"
+        />
+      </div>
     </>
   );
 }
