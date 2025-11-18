@@ -870,16 +870,17 @@ export function ArticleFormPage() {
                 </Button>
 
                 <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={(e) => handleSubmit(e as any, 'ready')}
-                  disabled={loading || publishing}
-                  className="w-full sm:w-auto justify-center"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  <span className="hidden sm:inline">Marquer comme prêt pour Vinted</span>
-                  <span className="sm:hidden">Prêt</span>
-                </Button>
+  type="button"
+  variant="secondary"
+  onClick={(e) => handleSubmit(e as any, 'ready')}
+  disabled={loading || publishing}
+  className="w-full sm:w-auto justify-center bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100"
+>
+  <CheckCircle className="w-4 h-4 mr-1" />
+  <span className="hidden sm:inline">Marquer comme prêt pour Vinted</span>
+  <span className="sm:hidden">Prêt</span>
+</Button>
+
 
                 <Button
                   type="button"
@@ -889,7 +890,7 @@ export function ArticleFormPage() {
                 >
                   <Send className="w-4 h-4" />
                   <span className="hidden sm:inline">
-                    {publishing ? 'Publication en cours...' : 'Valider et envoyer à Vinted'}
+                    {publishing ? 'Publication en cours...' : 'Envoyer à Vinted'}
                   </span>
                   <span className="sm:hidden">
                     {publishing ? 'Envoi...' : 'Envoyer à Vinted'}
